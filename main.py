@@ -20,20 +20,22 @@ def read_root():
 @app.get("/api/files")
 def list_files(path: str = ""):
     
-    if path == True:
+    if path != "":
         Target_Dir = Base_Dir / path
     else:
         Target_Dir = Base_Dir
         
     try: 
-        Target_Dir = Target_Dir.resolve()
-        Base_Dir.resolve()
+        Target_Dir_resolved = Target_Dir.resolve()
+        Base_Dir_resolved = Base_Dir.resolve()
         
-        if not str(Target_Dir).startswith(str(Base_Dir.resolve())):
-            raise HTTPException(status_code= 403, detail= "Access Denied")
+        Target_Dir_resolved.relative_to(Base_Dir_resolved)
         
-    except Exception as e:
-        raise HTTPException(status_code= 400, detail=str(e))
+        # if not str(Target_Dir).startswith(str(Base_Dir.resolve())):
+        #     raise HTTPException(status_code= 403, detail= "Access Denied")
+        
+    except ValueError:
+        raise HTTPException(status_code= 403, detail= "Access Denied")
 
     if not Target_Dir.exists():
         raise HTTPException(status_code=404, detail= "Directory not found")
