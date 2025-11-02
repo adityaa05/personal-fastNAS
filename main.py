@@ -1,0 +1,162 @@
+from fastapi import FastAPI, HTTPException, UploadFile,File
+from pathlib import Path
+from typing import List
+import datetime
+from fastapi.responses import FileResponse
+import mimetypes
+import os
+
+Base_Dir = Path("/Users/adityaa/Desktop/test_storage")
+app = FastAPI(title= "Aditya's NAS")
+
+#default endpoint
+@app.get("/")
+def read_root():
+    return {
+        "message" : "Welcome Aditya! ;)"
+    }
+
+#listing files endpoint
+@app.get("/api/files")
+def list_files(path: str = ""):
+    
+    if path == True:
+        Target_Dir = Base_Dir / path
+    else:
+        Target_Dir = Base_Dir
+        
+    try: 
+        Target_Dir = Target_Dir.resolve()
+        Base_Dir.resolve()
+        
+        if not str(Target_Dir).startswith(str(Base_Dir.resolve())):
+            raise HTTPException(status_code= 403, detail= "Access Denied")
+        
+    except Exception as e:
+        raise HTTPException(status_code= 400, detail=str(e))
+
+    if not Target_Dir.exists():
+        raise HTTPException(status_code=404, detail= "Directory not found")
+    
+    if not Target_Dir.is_dir():
+        raise HTTPException(status_code=400, detail= "Path is not a directory")
+             
+    items = []
+    for item in sorted(Target_Dir.iterdir()):
+        creation_time = item.stat().st_birthtime
+        items.append({
+            "name": item.name, #here item.xyz only returns filename not the file path
+            "is_file": item.is_file(),
+            "is_folder": item.is_dir(),
+            "file_size" : item.stat().st_size,
+            "creation_date" : datetime.datetime.fromtimestamp(creation_time),
+            "test_item" : str(item),
+            "test_item2" : item.absolute()
+        })
+    
+    return {
+        "path" : str(Base_Dir),
+        "count" : len(items),
+        "items" : items
+    }
+
+#listing count of files and folders too
+@app.get("/api/onlyfiles")
+def get_files():
+    file_count = 0
+    folder_count = 0
+
+    
+    for item in Base_Dir.iterdir():
+        if item.is_file():
+            file_count += 1
+        else:
+            folder_count += 1
+            
+    return {
+        "total_files" : file_count,
+        "total_folders" : folder_count
+    }
+    
+#downloading a file
+@app.get("/api/download/{filename}")
+def download_files(filename : str):
+    file_path = Base_Dir / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code= 404, detail= "File not found")
+    
+    if file_path.is_dir():
+        raise HTTPException(status_code= 400, detail= "Sorry but no folders allowed")
+
+    return FileResponse(
+        path = file_path,
+        filename=filename,
+        media_type='application/octet-stream'
+    )
+       
+#upload a file
+@app.post("/api/upload")
+async def upload_files(file: UploadFile = File(None, description= "Upload a file")): #will return error if no file is uploaded
+    file_path = Base_Dir / file.filename
+    """
+    def file_rename():
+        filename,  extension = os.path.splitext(file_path)
+        counter = 1
+        
+        while True:
+            new_filename = f"{filename}{counter}{extension}"
+            if not os.path.exists(new_filename):
+                break
+            counter += 1
+        os.rename(file_path, new_filename)
+        return new_filename
+    """
+    
+    if file_path.exists(): #check if the file already exists or not
+        raise HTTPException(status_code= 400, detail= " File already exists") 
+      
+    contents = await file.read() #analyse the file content
+    #after reading if you want you can limit the file size too
+    max_size = 2 * 1024 * 1024 #2mb max
+    allowed_filetype = [".txt", ".pdf", ".jpg", ".png", ".mp4"]
+    my_filetype = Path(file.filename).suffix.lower()
+    
+    if not my_filetype in allowed_filetype:
+        raise HTTPException(status_code= 400, detail= f"File type: {my_filetype} not allowed")
+    
+    if(len(contents) > max_size):
+        raise HTTPException(status_code= 413, detail= "File size is exceeding 10 MB")
+    
+    with open(file_path, "wb") as fp: 
+        fp.write(contents) #push the content
+        
+    return {
+        "success" : True,
+        "filename" : file.filename,
+        "size" : len(contents),
+        "message" : "Successfully uploaded your file!" 
+    }
+
+#file info endpoint (challenge) 
+@app.get("/api/teststat/{filename}")
+def fileinfo(filename : str):
+    filename = Base_Dir / filename
+    
+    if not filename.exists():
+        raise HTTPException(status_code= 404, detail= "Not found")
+    
+    file_info = []
+    
+    extension = filename.suffix
+    file_info.append({
+        "name" : filename.name,
+        "size" : filename.stat(follow_symlinks= True).st_size,
+        "filetype" : mimetypes.guess_type(filename)
+        })
+           
+    return {
+        "data" : file_info
+    }
+    
+    
