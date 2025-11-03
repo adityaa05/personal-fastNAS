@@ -97,6 +97,30 @@ def download_files(filename : str):
         media_type='application/octet-stream'
     )
        
+#downloading a file via query - path
+@app.get("/api/download")
+def download_files_with_path(path : str):
+    file_path = Base_Dir / path
+    
+    try: 
+        
+        file_path_resolved = file_path.resolve()
+        base_dir_resolved = Base_Dir.resolve()
+        file_path_resolved.relative_to(base_dir_resolved)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if not file_path_resolved.exists():
+        raise HTTPException(status_code= 404, detail= "File not found")
+    
+    if file_path_resolved.is_dir():
+        raise HTTPException(status_code= 400, detail= "Path is not a file")
+
+    return FileResponse(
+        path = file_path_resolved,
+        filename= file_path_resolved.name,
+        media_type='application/octet-stream'
+    )
 #upload a file
 @app.post("/api/upload")
 async def upload_files(file: UploadFile = File(None, description= "Upload a file")): #will return error if no file is uploaded
