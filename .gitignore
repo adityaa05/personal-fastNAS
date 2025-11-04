@@ -1,3 +1,58 @@
+# VS Code
 nas_server.code-workspace
-__pycache__/main.cpython-313.pyc
 .vscode/sessions.json
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+__pycache__/main.cpython-313.pyc
+
+# Python virtual environment
+nasvenv/
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE and OS specific files
+.idea/
+*.swp
+*.swo
+.DS_Store
+frontend/.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Local development settings
+*.sqlite3
+*.db
+
+# Temporary files
+*.tmp
+*.bak
+*.pid
+.Python
