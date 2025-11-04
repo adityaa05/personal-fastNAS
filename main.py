@@ -208,6 +208,7 @@ def search_files(
 
         if lowercase_q in file_loc.name.lower():
             if file_loc.is_file:
+                image_ext = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"]
                 results.append(
                     {
                         "filename": file_loc.name,
@@ -215,6 +216,11 @@ def search_files(
                         "size": str(file_loc.relative_to(Base_Dir)),
                         "modification_at": file_loc.stat().st_mtime,
                         "folder": str(file_loc.parent.relative_to(Base_Dir)),
+                        "thumbnail_url": (
+                            f"/api/thumbnail/{file_loc.relative_to(Base_Dir)}"
+                            if file_loc.suffix.lower() in image_ext
+                            else None
+                        ),
                     }
                 )
 
@@ -236,7 +242,26 @@ def search_files(
 
 # thumbnail function for easy preview image
 @app.get("/api/thumbnail/{file_path:path}")
-def preview_img_thumbnails(file_path: str, size: int = 200):
+def preview_img_thumbnails(file_path: str, size: int = 200, format: str = "jpeg"):
+    # Validate format parameter
+    valid_formats = ["jpeg", "png", "webp"]
+    if format.lower() not in valid_formats:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid format. Must be one of: {valid_formats}"
+        )
+
+    # Normalize format
+    output_format = format.upper()  # Pillow expects uppercase
+    if output_format == "JPEG":
+        output_format = "JPEG"
+        media_type = "image/jpeg"
+    elif output_format == "PNG":
+        output_format = "PNG"
+        media_type = "image/png"
+    elif output_format == "WEBP":
+        output_format = "WEBP"
+        media_type = "image/webp"
+
     file_path = Base_Dir / file_path
 
     try:
@@ -270,14 +295,21 @@ def preview_img_thumbnails(file_path: str, size: int = 200):
 
             img = bg
 
-            img.save(buffer, format="JPEG")
-            buffer.seek(0)
+            # Save with format-specific options
+        if output_format == "JPEG":
+            img.save(buffer, format="JPEG", quality=85)
+        elif output_format == "PNG":
+            img.save(buffer, format="PNG", optimize=True)
+        elif output_format == "WEBP":
+            img.save(buffer, format="WEBP", quality=85)
 
-            return StreamingResponse(
-                buffer,
-                media_type="image/jpeg",
-                headers={"Cache-Control": "public, max-age = 1800"},
-            )
+        buffer.seek(0)
+
+        return StreamingResponse(
+            buffer,
+            media_type=f"image/{format}",
+            headers={"Cache-Control": "public, max-age = 3600"},
+        )
 
     except Exception as e:
         raise HTTPException(
