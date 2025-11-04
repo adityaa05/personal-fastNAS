@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Personal NAS</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f5f5f7;
+        --bg-tertiary: #e8e8ed;
+        --text-primary: #1d1d1f;
+        --text-secondary: #86868b;
+        --border-color: #d2d2d7;
+        --accent-color: #0071e3;
+        --accent-hover: #0077ed;
+        --sidebar-width: 240px;
+        --header-height: 60px;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg-primary: #000000;
+          --bg-secondary: #1d1d1f;
+          --bg-tertiary: #2d2d2f;
+          --text-primary: #f5f5f7;
+          --text-secondary: #86868b;
+          --border-color: #424245;
+          --accent-color: #0a84ff;
+          --accent-hover: #409cff;
+        }
+      }
+
+      body {
+        font-family: "Google Sans", -apple-system, BlinkMacSystemFont,
+          "Segoe UI", Roboto, sans-serif;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        overflow: hidden;
+      }
+
+      /* Layout */
+      .app-container {
+        display: flex;
+        height: 100vh;
+      }
+
+      /* Sidebar */
+      .sidebar {
+        width: var(--sidebar-width);
+        background: var(--bg-primary);
+        border-right: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+      }
+
+      .sidebar-header {
+        padding: 20px;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .sidebar-header h1 {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      .sidebar-nav {
+        flex: 1;
+        padding: 12px 0;
+      }
+
+      .nav-item {
+        padding: 10px 20px;
+        cursor: pointer;
+        transition: background 0.15s;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-primary);
+        border-left: 3px solid transparent;
+      }
+
+      .nav-item:hover {
+        background: var(--bg-secondary);
+      }
+
+      .nav-item.active {
+        background: var(--bg-secondary);
+        border-left-color: var(--accent-color);
+        color: var(--accent-color);
+      }
+
+      .sidebar-footer {
+        padding: 20px;
+        border-top: 1px solid var(--border-color);
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+
+      /* Main Content */
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .content-header {
+        height: var(--header-height);
+        background: var(--bg-primary);
+        border-bottom: 1px solid var(--border-color);
+        padding: 0 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .content-header h2 {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      .content-body {
+        flex: 1;
+        padding: 32px;
+        overflow-y: auto;
+      }
+
+      /* Common Elements */
+      .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: inherit;
+      }
+
+      .btn-primary {
+        background: var(--accent-color);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: var(--accent-hover);
+      }
+
+      .btn-secondary {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+      }
+
+      .btn-secondary:hover {
+        background: var(--border-color);
+      }
+
+      .input {
+        padding: 10px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        width: 100%;
+      }
+
+      .input:focus {
+        outline: none;
+        border-color: var(--accent-color);
+      }
+
+      /* View Sections */
+      .view {
+        display: none;
+      }
+
+      .view.active {
+        display: block;
+      }
+
+      /* File Browser */
+      .breadcrumb {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 24px;
+        font-size: 14px;
+        color: var(--text-secondary);
+      }
+
+      .breadcrumb-item {
+        cursor: pointer;
+      }
+
+      .breadcrumb-item:hover {
+        color: var(--accent-color);
+      }
+
+      .file-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 16px;
+        margin-top: 24px;
+      }
+
+      .file-item {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: center;
+      }
+
+      .file-item:hover {
+        border-color: var(--accent-color);
+        transform: translateY(-2px);
+      }
+
+      .file-icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 12px;
+        font-size: 48px;
+      }
+
+      .file-name {
+        font-size: 13px;
+        word-break: break-word;
+        color: var(--text-primary);
+      }
+
+      .file-size {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+      }
+
+      /* Stats Cards */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+        margin-bottom: 32px;
+      }
+
+      .stat-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 24px;
+      }
+
+      .stat-label {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+      }
+
+      .stat-value {
+        font-size: 32px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      /* Upload Area */
+      .upload-area {
+        border: 2px dashed var(--border-color);
+        border-radius: 12px;
+        padding: 48px;
+        text-align: center;
+        background: var(--bg-primary);
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .upload-area:hover {
+        border-color: var(--accent-color);
+        background: var(--bg-secondary);
+      }
+
+      .upload-area.dragging {
+        border-color: var(--accent-color);
+        background: var(--bg-secondary);
+      }
+
+      /* Search */
+      .search-container {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+
+      .search-container .input {
+        flex: 1;
+      }
+
+      /* Loading */
+      .loading {
+        text-align: center;
+        padding: 48px;
+        color: var(--text-secondary);
+      }
+
+      /* Message */
+      .message {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 14px;
+      }
+
+      .message.success {
+        background: #d1f4e0;
+        color: #0f5132;
+      }
+
+      .message.error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      /* Settings Form */
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+      }
+
+      .settings-info {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+
+      .settings-info-label {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+      }
+
+      .settings-info-value {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-primary);
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .sidebar {
+          position: fixed;
+          left: -240px;
+          z-index: 100;
+          transition: left 0.3s;
+        }
+
+        .sidebar.open {
+          left: 0;
+        }
+
+        .file-grid {
+          grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        }
+
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h1>Personal NAS</h1>
+        </div>
+        <nav class="sidebar-nav">
+          <div class="nav-item active" data-view="files">Files</div>
+          <div class="nav-item" data-view="upload">Upload</div>
+          <div class="nav-item" data-view="search">Search</div>
+          <div class="nav-item" data-view="storage">Storage</div>
+          <div class="nav-item" data-view="settings">Settings</div>
+        </nav>
+        <div class="sidebar-footer">
+          <div>Version 2.0.0</div>
+          <div id="connection-status">Connected</div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header class="content-header">
+          <h2 id="view-title">Files</h2>
+          <div id="header-actions"></div>
+        </header>
+
+        <div class="content-body">
+          <!-- Files View -->
+          <div class="view active" id="files-view">
+            <div class="breadcrumb" id="breadcrumb"></div>
+            <div class="file-grid" id="file-grid"></div>
+          </div>
+
+          <!-- Upload View -->
+          <div class="view" id="upload-view">
+            <div class="upload-area" id="upload-area">
+              <div style="font-size: 48px; margin-bottom: 16px">📁</div>
+              <div
+                style="font-size: 16px; font-weight: 500; margin-bottom: 8px"
+              >
+                Drop files here or click to browse
+              </div>
+              <div style="font-size: 13px; color: var(--text-secondary)">
+                Maximum file size: 100 MB
+              </div>
+              <input
+                type="file"
+                id="file-input"
+                style="display: none"
+                multiple
+              />
+            </div>
+            <div id="upload-progress" style="margin-top: 24px"></div>
+          </div>
+
+          <!-- Search View -->
+          <div class="view" id="search-view">
+            <div class="search-container">
+              <input
+                type="text"
+                class="input"
+                id="search-input"
+                placeholder="Search files..."
+              />
+              <button class="btn btn-primary" id="search-btn">Search</button>
+            </div>
+            <div id="search-results"></div>
+          </div>
+
+          <!-- Storage View -->
+          <div class="view" id="storage-view">
+            <div class="stats-grid" id="storage-stats"></div>
+          </div>
+
+          <!-- Settings View -->
+          <div class="view" id="settings-view">
+            <div class="form-group">
+              <label class="form-label">Server Configuration</label>
+              <div class="settings-info">
+                <div class="settings-info-label">
+                  Server URL (for remote access)
+                </div>
+                <input
+                  type="text"
+                  class="input"
+                  id="server-url-input"
+                  placeholder="http://100.x.x.x:8000"
+                />
+                <button
+                  class="btn btn-secondary"
+                  style="margin-top: 12px"
+                  id="save-server-url"
+                >
+                  Save Server URL
+                </button>
+              </div>
+              <div class="settings-info">
+                <div class="settings-info-label">Current Base URL</div>
+                <div class="settings-info-value" id="settings-base-url"></div>
+              </div>
+              <div class="settings-info">
+                <div class="settings-info-label">API Key</div>
+                <input
+                  type="password"
+                  class="input"
+                  id="api-key-input"
+                  placeholder="Enter your API key"
+                />
+                <button
+                  class="btn btn-primary"
+                  style="margin-top: 12px"
+                  id="save-api-key"
+                >
+                  Save API Key
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      // Configuration - Smart detection for local or remote access
+      const CONFIG = {
+        baseUrl: (() => {
+          // If accessed via localhost or 127.0.0.1, use current origin
+          if (
+            window.location.hostname === "localhost" ||
+            window.location.hostname === "127.0.0.1"
+          ) {
+            return window.location.origin;
+          }
+          // For remote access, you can set Tailscale IP here
+          // Or it will try to use the current origin
+          const savedUrl = localStorage.getItem("nas_server_url");
+          return savedUrl || window.location.origin;
+        })(),
+        apiKey: localStorage.getItem("nas_api_key") || "",
+      };
+
+      // State
+      let currentPath = "";
+      let currentView = "files";
+
+      // API Helper
+      async function apiCall(endpoint, options = {}) {
+        const headers = {
+          ...options.headers,
+        };
+
+        if (CONFIG.apiKey) {
+          headers["X-API-Key"] = CONFIG.apiKey;
+        }
+
+        try {
+          const response = await fetch(`${CONFIG.baseUrl}${endpoint}`, {
+            ...options,
+            headers,
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || "Request failed");
+          }
+
+          return await response.json();
+        } catch (error) {
+          showMessage(error.message, "error");
+          throw error;
+        }
+      }
+
+      // UI Helpers
+      function showMessage(message, type = "success") {
+        const existingMsg = document.querySelector(".message");
+        if (existingMsg) existingMsg.remove();
+
+        const msg = document.createElement("div");
+        msg.className = `message ${type}`;
+        msg.textContent = message;
+        document.querySelector(".content-body").prepend(msg);
+
+        setTimeout(() => msg.remove(), 5000);
+      }
+
+      function formatBytes(bytes) {
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let size = bytes;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+          size /= 1024;
+          unitIndex++;
+        }
+        return `${size.toFixed(2)} ${units[unitIndex]}`;
+      }
+
+      function getFileIcon(item) {
+        if (item.is_folder) return "📁";
+        const ext = item.extension || "";
+        const iconMap = {
+          ".jpg": "🖼️",
+          ".jpeg": "🖼️",
+          ".png": "🖼️",
+          ".gif": "🖼️",
+          ".mp4": "🎬",
+          ".mkv": "🎬",
+          ".avi": "🎬",
+          ".mp3": "🎵",
+          ".wav": "🎵",
+          ".pdf": "📄",
+          ".doc": "📄",
+          ".docx": "📄",
+          ".zip": "🗜️",
+          ".tar": "🗜️",
+          ".gz": "🗜️",
+          ".txt": "📝",
+        };
+        return iconMap[ext] || "📄";
+      }
+
+      // Navigation
+      function switchView(viewName) {
+        document
+          .querySelectorAll(".view")
+          .forEach((v) => v.classList.remove("active"));
+        document
+          .querySelectorAll(".nav-item")
+          .forEach((n) => n.classList.remove("active"));
+
+        document.getElementById(`${viewName}-view`).classList.add("active");
+        document
+          .querySelector(`[data-view="${viewName}"]`)
+          .classList.add("active");
+
+        const titles = {
+          files: "Files",
+          upload: "Upload Files",
+          search: "Search",
+          storage: "Storage Statistics",
+          settings: "Settings",
+        };
+        document.getElementById("view-title").textContent = titles[viewName];
+        currentView = viewName;
+
+        // Load data for the view
+        if (viewName === "files") loadFiles();
+        if (viewName === "storage") loadStorage();
+        if (viewName === "settings") loadSettings();
+      }
+
+      // Files View
+      async function loadFiles(path = "") {
+        const grid = document.getElementById("file-grid");
+        grid.innerHTML = '<div class="loading">Loading...</div>';
+
+        try {
+          const data = await apiCall(
+            `/api/files?path=${encodeURIComponent(path)}`
+          );
+          currentPath = path;
+
+          renderBreadcrumb(path);
+          renderFiles(data.items);
+        } catch (error) {
+          grid.innerHTML = '<div class="loading">Error loading files</div>';
+        }
+      }
+
+      function renderBreadcrumb(path) {
+        const breadcrumb = document.getElementById("breadcrumb");
+        const parts = path ? path.split("/") : [];
+
+        let html = '<span class="breadcrumb-item" data-path="">Home</span>';
+        let currentPath = "";
+
+        parts.forEach((part) => {
+          currentPath += (currentPath ? "/" : "") + part;
+          html += ` / <span class="breadcrumb-item" data-path="${currentPath}">${part}</span>`;
+        });
+
+        breadcrumb.innerHTML = html;
+
+        breadcrumb.querySelectorAll(".breadcrumb-item").forEach((item) => {
+          item.addEventListener("click", () => {
+            loadFiles(item.dataset.path);
+          });
+        });
+      }
+
+      function renderFiles(items) {
+        const grid = document.getElementById("file-grid");
+
+        if (items.length === 0) {
+          grid.innerHTML = '<div class="loading">No files found</div>';
+          return;
+        }
+
+        grid.innerHTML = items
+          .map(
+            (item) => `
+                <div class="file-item" data-path="${
+                  item.path
+                }" data-is-folder="${item.is_folder}">
+                    <div class="file-icon">${getFileIcon(item)}</div>
+                    <div class="file-name">${item.name}</div>
+                    ${
+                      !item.is_folder
+                        ? `<div class="file-size">${formatBytes(
+                            item.file_size
+                          )}</div>`
+                        : ""
+                    }
+                </div>
+            `
+          )
+          .join("");
+
+        grid.querySelectorAll(".file-item").forEach((item) => {
+          item.addEventListener("click", () => {
+            const path = item.dataset.path;
+            const isFolder = item.dataset.isFolder === "true";
+
+            if (isFolder) {
+              loadFiles(path);
+            } else {
+              downloadFile(path);
+            }
+          });
+        });
+      }
+
+      async function downloadFile(path) {
+        window.location.href = `${
+          CONFIG.baseUrl
+        }/api/download?path=${encodeURIComponent(path)}`;
+      }
+
+      // Upload View
+      function setupUpload() {
+        const uploadArea = document.getElementById("upload-area");
+        const fileInput = document.getElementById("file-input");
+
+        uploadArea.addEventListener("click", () => fileInput.click());
+
+        uploadArea.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          uploadArea.classList.add("dragging");
+        });
+
+        uploadArea.addEventListener("dragleave", () => {
+          uploadArea.classList.remove("dragging");
+        });
+
+        uploadArea.addEventListener("drop", (e) => {
+          e.preventDefault();
+          uploadArea.classList.remove("dragging");
+          handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener("change", (e) => {
+          handleFiles(e.target.files);
+        });
+      }
+
+      async function handleFiles(files) {
+        const progress = document.getElementById("upload-progress");
+        progress.innerHTML = "";
+
+        for (const file of files) {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("path", currentPath);
+
+          try {
+            progress.innerHTML += `<div>Uploading ${file.name}...</div>`;
+
+            const response = await fetch(`${CONFIG.baseUrl}/api/upload`, {
+              method: "POST",
+              headers: CONFIG.apiKey ? { "X-API-Key": CONFIG.apiKey } : {},
+              body: formData,
+            });
+
+            if (!response.ok) throw new Error("Upload failed");
+
+            const result = await response.json();
+            progress.innerHTML += `<div style="color: green;">✓ ${
+              file.name
+            } uploaded (${formatBytes(result.size)})</div>`;
+          } catch (error) {
+            progress.innerHTML += `<div style="color: red;">✗ ${file.name} failed</div>`;
+          }
+        }
+      }
+
+      // Search View
+      function setupSearch() {
+        const searchBtn = document.getElementById("search-btn");
+        const searchInput = document.getElementById("search-input");
+
+        searchBtn.addEventListener("click", performSearch);
+        searchInput.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") performSearch();
+        });
+      }
+
+      async function performSearch() {
+        const query = document.getElementById("search-input").value;
+        if (query.length < 2) {
+          showMessage("Please enter at least 2 characters", "error");
+          return;
+        }
+
+        const results = document.getElementById("search-results");
+        results.innerHTML = '<div class="loading">Searching...</div>';
+
+        try {
+          const data = await apiCall(
+            `/api/search?q=${encodeURIComponent(query)}`
+          );
+
+          if (data.results.length === 0) {
+            results.innerHTML = '<div class="loading">No results found</div>';
+            return;
+          }
+
+          results.innerHTML = `
+                    <div style="margin-bottom: 16px; color: var(--text-secondary);">
+                        Found ${data.count} result(s)
+                    </div>
+                    <div class="file-grid">
+                        ${data.results
+                          .map(
+                            (item) => `
+                            <div class="file-item" data-path="${item.path}">
+                                <div class="file-icon">${getFileIcon({
+                                  extension: item.extension,
+                                })}</div>
+                                <div class="file-name">${item.filename}</div>
+                                <div class="file-size">${item.size_human}</div>
+                            </div>
+                        `
+                          )
+                          .join("")}
+                    </div>
+                `;
+
+          results.querySelectorAll(".file-item").forEach((item) => {
+            item.addEventListener("click", () =>
+              downloadFile(item.dataset.path)
+            );
+          });
+        } catch (error) {
+          results.innerHTML =
+            '<div class="loading">Error searching files</div>';
+        }
+      }
+
+      // Storage View
+      async function loadStorage() {
+        const statsGrid = document.getElementById("storage-stats");
+        statsGrid.innerHTML =
+          '<div class="loading">Loading statistics...</div>';
+
+        try {
+          const data = await apiCall("/api/stats");
+
+          statsGrid.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-label">Total Space</div>
+                        <div class="stat-value">${formatBytes(
+                          data.total_space
+                        )}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Used Space</div>
+                        <div class="stat-value">${formatBytes(
+                          data.used_space
+                        )}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Free Space</div>
+                        <div class="stat-value">${formatBytes(
+                          data.free_space
+                        )}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Usage</div>
+                        <div class="stat-value">${data.usage_percentage}%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Files</div>
+                        <div class="stat-value">${data.total_files}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Folders</div>
+                        <div class="stat-value">${data.total_folders}</div>
+                    </div>
+                `;
+        } catch (error) {
+          statsGrid.innerHTML =
+            '<div class="loading">Error loading statistics</div>';
+        }
+      }
+
+      // Settings View
+      function loadSettings() {
+        document.getElementById("settings-base-url").textContent =
+          CONFIG.baseUrl;
+        document.getElementById("api-key-input").value = CONFIG.apiKey;
+        document.getElementById("server-url-input").value =
+          localStorage.getItem("nas_server_url") || "";
+
+        // Save server URL
+        document
+          .getElementById("save-server-url")
+          .addEventListener("click", () => {
+            const newUrl = document
+              .getElementById("server-url-input")
+              .value.trim();
+            if (newUrl && !newUrl.startsWith("http")) {
+              showMessage(
+                "Server URL must start with http:// or https://",
+                "error"
+              );
+              return;
+            }
+            localStorage.setItem("nas_server_url", newUrl);
+            CONFIG.baseUrl = newUrl || window.location.origin;
+            showMessage("Server URL saved. Reload page to apply changes.");
+            setTimeout(() => location.reload(), 2000);
+          });
+
+        // Save API key
+        document
+          .getElementById("save-api-key")
+          .addEventListener("click", () => {
+            const newKey = document.getElementById("api-key-input").value;
+            CONFIG.apiKey = newKey;
+            localStorage.setItem("nas_api_key", newKey);
+            showMessage("API key saved successfully");
+          });
+      }
+
+      // Initialize
+      document.addEventListener("DOMContentLoaded", () => {
+        // Setup navigation
+        document.querySelectorAll(".nav-item").forEach((item) => {
+          item.addEventListener("click", () => {
+            switchView(item.dataset.view);
+          });
+        });
+
+        // Setup features
+        setupUpload();
+        setupSearch();
+
+        // Load initial view
+        loadFiles();
+      });
+    </script>
+  </body>
+</html>
