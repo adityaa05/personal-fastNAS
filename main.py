@@ -174,7 +174,6 @@ def fileinfo(filename : str):
     
     file_info = []
     
-    extension = filename.suffix
     file_info.append({
         "name" : filename.name,
         "size" : filename.stat(follow_symlinks= True).st_size,
@@ -185,4 +184,40 @@ def fileinfo(filename : str):
         "data" : file_info
     }
     
+#searching files with fitering- search by extension
+@app.get("/api/search")
+def search_files(
+    q: str,
+    file_type: str = None
+):
+    #handling insuff chars in search query
+    if len(q) < 1:
+        raise HTTPException(status_code= 400, detail= "Your query contains insufficient characters")
+    
+    lowercase_q = q.lower()     
+    results = []
+    for file_loc in Base_Dir.rglob('*'):
+        if file_type and not file_loc.suffix.lower() ==f"{file_type.lower()}":
+            continue
+        
+        
+        if lowercase_q in file_loc.name.lower(): 
+            if file_loc.is_file:
+                results.append(
+                    {
+                        "filename" : file_loc.name,
+                        "path" : file_loc,
+                        "size" : str(file_loc.relative_to(Base_Dir)),
+                        "modification_at" : file_loc.stat().st_mtime,
+                        "folder" : str(file_loc.parent.relative_to(Base_Dir))
+                    }
+                ) 
+                
+    return {
+        "query" : q,
+        "filetype" : file_type,
+        "search_count" : len(results),
+        "search_results" : results
+    } 
+                
     
