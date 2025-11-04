@@ -443,3 +443,99 @@ def delete_item(item_path: str, force: bool = False):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting item: {str(e)}")
+
+
+@app.get("/api/stream/{file_path:path}")
+async def stream_video(file_path: str, request: Request):
+    """Stream video files with range request support"""
+
+    # Build full path
+    full_path = Base_Dir / file_path
+
+    # Security check
+    try:
+        full_path_resolved = full_path.resolve()
+        base_resolved = Base_Dir.resolve()
+        full_path_resolved.relative_to(base_resolved)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Check if file exists
+    if not full_path_resolved.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Check if it's a file
+    if not full_path_resolved.is_file():
+        raise HTTPException(status_code=400, detail="Path is not a file")
+
+    # Check if it's a video file
+    video_extensions = [".mp4", ".mkv", ".avi", ".mov", ".webm", ".flv", ".wmv"]
+    if full_path_resolved.suffix.lower() not in video_extensions:
+        raise HTTPException(status_code=400, detail="File is not a video")
+
+    # Get file size
+    file_size = full_path_resolved.stat().st_size
+
+    # Get range header from request (for seeking in video)
+    range_header = request.headers.get("range")
+
+    # Determine MIME type
+    mime_type, _ = mimetypes.guess_type(str(full_path_resolved))
+    if not mime_type:
+        mime_type = "video/mp4"
+
+    # Handle range request (for video seeking)
+    if range_header:
+        # Parse range header (format: "bytes=start-end")
+        byte_range = range_header.replace("bytes=", "").split("-")
+        start = int(byte_range[0]) if byte_range[0] else 0
+        end = (
+            int(byte_range[1])
+            if len(byte_range) > 1 and byte_range[1]
+            else file_size - 1
+        )
+
+        # Calculate content length
+        content_length = end - start + 1
+
+        # Open file and seek to start position
+        def iterfile():
+            with open(full_path_resolved, "rb") as f:
+                f.seek(start)
+                remaining = content_length
+                while remaining > 0:
+                    chunk_size = min(8192, remaining)  # 8KB chunks
+                    chunk = f.read(chunk_size)
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+
+        # Return partial content (206 status)
+        return StreamingResponse(
+            iterfile(),
+            status_code=206,  # Partial Content
+            media_type=mime_type,
+            headers={
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(content_length),
+            },
+        )
+
+    # No range request - stream entire file
+    else:
+
+        def iterfile():
+            with open(full_path_resolved, "rb") as f:
+                while chunk := f.read(8192):  # 8KB chunks
+                    yield chunk
+
+        return StreamingResponse(
+            iterfile(),
+            media_type=mime_type,
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(file_size),
+            },
+        )
