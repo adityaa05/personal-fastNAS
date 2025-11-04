@@ -189,7 +189,9 @@ def fileinfo(filename: str):
 
 # searching files with fitering- search by extension
 @app.get("/api/search")
-def search_files(q: str, file_type: str = None, sort_bysize: str = "size"):
+def search_files(
+    q: str, file_type: str = None, sort_bysize: str = "size", limit: int = None
+):
     # handling insuff chars in search query
     if len(q) < 1:
         raise HTTPException(
@@ -216,10 +218,15 @@ def search_files(q: str, file_type: str = None, sort_bysize: str = "size"):
 
         if sort_bysize == "size":
             results = sorted(results, key=lambda x: x["size"].lower())
+
+        if limit is not None and limit > 0:
+            results = results[:limit]
+
     return {
         "query": q,
         "filetype": file_type,
         "search_count": len(results),
         "search_results": results,
         "sort_by": sort_bysize,
+        "limit": limit,
     }
