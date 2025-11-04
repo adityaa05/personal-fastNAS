@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from pathlib import Path
 from typing import List
 import datetime
@@ -8,6 +8,8 @@ import os
 from PIL import Image
 import io
 from pydantic import BaseModel
+import shutil
+
 
 Base_Dir = Path("/Users/adityaa/Desktop/test_storage")
 app = FastAPI(title="Aditya's NAS")
@@ -377,3 +379,67 @@ def create_folder(folder_data: FolderCreate):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating folder: {str(e)}")
+
+
+# folder and files delete endpoint
+@app.delete("/api/delete/{item_path:path}")
+def delete_item(item_path: str, force: bool = False):
+
+    # Build full path
+    full_path = Base_Dir / item_path
+
+    # Security check
+    try:
+        full_path_resolved = full_path.resolve()
+        base_resolved = Base_Dir.resolve()
+        full_path_resolved.relative_to(base_resolved)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Check if item exists
+    if not full_path_resolved.exists():
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    try:
+        # Handle file deletion
+        if full_path_resolved.is_file():
+            full_path_resolved.unlink()
+            return {
+                "success": True,
+                "message": f"File '{full_path_resolved.name}' deleted successfully",
+                "type": "file",
+            }
+
+        # Handle folder deletion
+        elif full_path_resolved.is_dir():
+            # Check if folder is empty
+            if any(full_path_resolved.iterdir()):
+                # Folder is not empty
+                if not force:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Folder is not empty. Use force=true to delete non-empty folders",
+                    )
+                # Force delete (remove folder and all contents
+                shutil.rmtree(full_path_resolved)
+                return {
+                    "success": True,
+                    "message": f"Folder '{full_path_resolved.name}' and all contents deleted",
+                    "type": "folder",
+                    "forced": True,
+                }
+            else:
+                # Folder is empty
+                full_path_resolved.rmdir()
+                return {
+                    "success": True,
+                    "message": f"Empty folder '{full_path_resolved.name}' deleted",
+                    "type": "folder",
+                }
+
+    except PermissionError:
+        raise HTTPException(
+            status_code=403, detail="Permission denied: Cannot delete this item"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting item: {str(e)}")
