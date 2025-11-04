@@ -2,9 +2,11 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from pathlib import Path
 from typing import List
 import datetime
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 import mimetypes
 import os
+from PIL import Image
+import io
 
 Base_Dir = Path("/Users/adityaa/Desktop/test_storage")
 app = FastAPI(title="Aditya's NAS")
@@ -230,3 +232,54 @@ def search_files(
         "sort_by": sort_bysize,
         "limit": limit,
     }
+
+
+# thumbnail function for easy preview image
+@app.get("/api/thumbnail/{file_path:path}")
+def preview_img_thumbnails(file_path: str, size: int = 200):
+    file_path = Base_Dir / file_path
+
+    try:
+        file_path_resolved = file_path.resolve()
+        base_dir_resolved = Base_Dir.resolve()
+        file_path_resolved.relative_to(base_dir_resolved)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access Denied")
+
+    if not file_path_resolved.exists():
+        raise HTTPException(status_code=404, detail=" File not found")
+
+    if not file_path_resolved.is_file():
+        raise HTTPException(status_code=400, detail=" Path is not a file")
+
+    image_ext = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"]
+    if file_path_resolved.suffix.lower() not in image_ext:
+        raise HTTPException(status_code=400, detail=" Fole os not an image")
+
+    try:
+        img = Image.open(file_path_resolved)
+        img.thumbnail((size, size))
+
+        buffer = io.BytesIO()
+
+        if img.mode in ("RGBA", "LA", "P"):
+            bg = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "P":
+                img = img.convert("RGBA")
+            bg.paste(img, mask=img.split()[-1] if img.mode == "RGBA" else None)
+
+            img = bg
+
+            img.save(buffer, format="JPEG")
+            buffer.seek(0)
+
+            return StreamingResponse(
+                buffer,
+                media_type="image/jpeg",
+                headers={"Cache-Control": "public, max-age = 1800"},
+            )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error generatign thumbnail:{str(e)}"
+        )
