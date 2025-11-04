@@ -7,6 +7,7 @@ import mimetypes
 import os
 from PIL import Image
 import io
+from pydantic import BaseModel
 
 Base_Dir = Path("/Users/adityaa/Desktop/test_storage")
 app = FastAPI(title="Aditya's NAS")
@@ -315,3 +316,64 @@ def preview_img_thumbnails(file_path: str, size: int = 200, format: str = "jpeg"
         raise HTTPException(
             status_code=500, detail=f"Error generatign thumbnail:{str(e)}"
         )
+
+
+# folder creation endpoint
+class FolderCreate(BaseModel):
+    folder_path: str
+    folder_name: str
+
+
+@app.post("/api/folders/create")
+def create_folder(folder_data: FolderCreate):
+
+    parent_path = Base_Dir / folder_data.folder_path
+    new_folder_path = parent_path / folder_data.folder_name
+
+    # Security check on parent path
+    try:
+        parent_resolved = parent_path.resolve()
+        base_resolved = Base_Dir.resolve()
+        parent_resolved.relative_to(base_resolved)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Check if parent directory exists
+    if not parent_resolved.exists():
+        raise HTTPException(status_code=404, detail="Parent directory not found")
+
+    # Check if parent is actually a directory
+    if not parent_resolved.is_dir():
+        raise HTTPException(status_code=400, detail="Parent path is not a directory")
+
+    # Security check on new folder path
+    try:
+        new_folder_resolved = new_folder_path.resolve()
+        new_folder_resolved.relative_to(base_resolved)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Check if folder already exists
+    if new_folder_resolved.exists():
+        raise HTTPException(status_code=400, detail="Folder already exists")
+
+    # Validate folder name (no special characters that could cause issues)
+    import re
+
+    if not re.match(r"^[\w\-. ]+$", folder_data.folder_name):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid folder name. Use only letters, numbers, spaces, hyphens, underscores, and dots",
+        )
+
+    try:
+        new_folder_resolved.mkdir(parents=False, exist_ok=False)
+
+        return {
+            "success": True,
+            "message": f"Folder {folder_data.folder_name} created successfully",
+            "path": str(new_folder_resolved.relative_to(base_resolved)),
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating folder: {str(e)}")
