@@ -15,13 +15,21 @@ Turn any old Windows, Mac, or Linux laptop into your own private Network Attache
 
 ## Screenshots
 
-```
-[Upload screenshots here]
+
 - Main file browser interface
-- Upload interface
+<img width="1710" height="1112" alt="image" src="https://github.com/user-attachments/assets/26609715-c513-4488-8945-6be620f99b3c" />
+
 - Search functionality
+<img width="1710" height="1112" alt="image" src="https://github.com/user-attachments/assets/da5677cf-6fc3-43bc-a9d9-15478e9b47b6" />
+
 - Storage statistics dashboard
-```
+<img width="1710" height="1112" alt="image" src="https://github.com/user-attachments/assets/036eac49-d0d5-4abd-ac8f-4e16bc26f4be" />
+
+- Tailscale Dashboard
+<img width="1710" height="1112" alt="image" src="https://github.com/user-attachments/assets/a96da39a-d3b3-49f5-ac42-f48769d92778" />
+
+
+
 
 ---
 
