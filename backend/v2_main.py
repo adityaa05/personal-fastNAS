@@ -15,7 +15,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-import datetime
 import mimetypes
 import os
 from PIL import Image
@@ -31,7 +30,8 @@ from functools import lru_cache
 import time
 import secrets
 from collections import defaultdict
-from datetime import timedelta
+from datetime import timedelta, datetime
+import threading
 
 # ============================================================================
 # CONFIGURATION & SETTINGS
@@ -348,27 +348,64 @@ def calculate_checksum(file_path: Path) -> str:
     return sha256_hash.hexdigest()
 
 
+# Global cache for stats
+_stats_cache = {"data": None, "timestamp": None, "lock": threading.Lock()}
+
+
 def get_storage_stats(base_dir: Path) -> Dict[str, Any]:
-    """Get storage statistics"""
-    stat = shutil.disk_usage(base_dir)
+    """Get storage statistics with caching to prevent performance issues"""
 
-    file_count = 0
-    folder_count = 0
+    # Cache for 5 minutes
+    CACHE_DURATION = timedelta(minutes=5)
 
-    for item in base_dir.rglob("*"):
-        if item.is_file():
-            file_count += 1
-        elif item.is_dir():
-            folder_count += 1
+    with _stats_cache["lock"]:
+        now = datetime.now()
 
-    return {
-        "total_space": stat.total,
-        "used_space": stat.used,
-        "free_space": stat.free,
-        "usage_percentage": round((stat.used / stat.total) * 100, 2),
-        "total_files": file_count,
-        "total_folders": folder_count,
-    }
+        # Return cached data if fresh
+        if (
+            _stats_cache["data"] is not None
+            and _stats_cache["timestamp"] is not None
+            and now - _stats_cache["timestamp"] < CACHE_DURATION
+        ):
+            return _stats_cache["data"]
+
+        # Get disk usage (fast)
+        stat = shutil.disk_usage(base_dir)
+
+        # Count files efficiently with early exit on large directories
+        file_count = 0
+        folder_count = 0
+        MAX_COUNT = 100000  # Safety limit
+
+        try:
+            # Use iterdir() only for immediate children, not recursive
+            for item in base_dir.iterdir():
+                if file_count + folder_count > MAX_COUNT:
+                    break
+
+                if item.is_file():
+                    file_count += 1
+                elif item.is_dir():
+                    folder_count += 1
+                    # Optionally count subdirectories (but slower)
+                    # You can remove this for even better performance
+        except PermissionError:
+            pass  # Skip inaccessible directories
+
+        result = {
+            "total_space": stat.total,
+            "used_space": stat.used,
+            "free_space": stat.free,
+            "usage_percentage": round((stat.used / stat.total) * 100, 2),
+            "total_files": file_count,
+            "total_folders": folder_count,
+        }
+
+        # Update cache
+        _stats_cache["data"] = result
+        _stats_cache["timestamp"] = now
+
+        return result
 
 
 def format_bytes(bytes_size: int) -> str:
