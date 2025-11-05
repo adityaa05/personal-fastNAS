@@ -640,7 +640,7 @@ async def search_files(
     q: str,
     file_type: Optional[str] = None,
     sort_by: str = "name",
-    limit: Optional[int] = 100,
+    limit: Optional[int] = 50,  # Reduced from 100
     _: str = Depends(verify_api_key),
     __: None = Depends(check_rate_limit),
 ):
@@ -656,39 +656,68 @@ async def search_files(
     results = []
     image_ext = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"]
 
-    # Use rglob for recursive search
-    for file_path in settings.BASE_DIR.rglob("*"):
-        if not file_path.is_file():
-            continue
+    # Performance optimizations
+    MAX_SEARCH_TIME = 10  # seconds
+    MAX_FILES_SCANNED = 10000
+    start_time = time.time()
+    files_scanned = 0
 
-        # Filter by extension if specified
-        if file_type and file_path.suffix.lower() != f".{file_type.lower()}":
-            continue
-
-        # Search in filename
-        if query_lower in file_path.name.lower():
-            stat = file_path.stat()
-            relative_path = str(file_path.relative_to(settings.BASE_DIR))
-
-            results.append(
-                {
-                    "filename": file_path.name,
-                    "path": relative_path,
-                    "size": stat.st_size,
-                    "size_human": format_bytes(stat.st_size),
-                    "modification_date": datetime.datetime.fromtimestamp(stat.st_mtime),
-                    "folder": str(file_path.parent.relative_to(settings.BASE_DIR)),
-                    "extension": file_path.suffix.lower(),
-                    "thumbnail_url": (
-                        f"/api/thumbnail/{relative_path}"
-                        if file_path.suffix.lower() in image_ext
-                        else None
-                    ),
-                }
-            )
-
-            if limit and len(results) >= limit:
+    # Use rglob for recursive search with safety limits
+    try:
+        for file_path in settings.BASE_DIR.rglob("*"):
+            # Safety checks
+            files_scanned += 1
+            if files_scanned > MAX_FILES_SCANNED:
+                logger.warning("Search hit file scan limit", scanned=files_scanned)
                 break
+
+            if time.time() - start_time > MAX_SEARCH_TIME:
+                logger.warning(
+                    "Search hit time limit", duration=time.time() - start_time
+                )
+                break
+
+            if not file_path.is_file():
+                continue
+
+            # Filter by extension if specified
+            if file_type and file_path.suffix.lower() != f".{file_type.lower()}":
+                continue
+
+            # Search in filename
+            if query_lower in file_path.name.lower():
+                try:
+                    stat = file_path.stat()
+                    relative_path = str(file_path.relative_to(settings.BASE_DIR))
+
+                    results.append(
+                        {
+                            "filename": file_path.name,
+                            "path": relative_path,
+                            "size": stat.st_size,
+                            "size_human": format_bytes(stat.st_size),
+                            "modification_date": datetime.datetime.fromtimestamp(
+                                stat.st_mtime
+                            ),
+                            "folder": str(
+                                file_path.parent.relative_to(settings.BASE_DIR)
+                            ),
+                            "extension": file_path.suffix.lower(),
+                            "thumbnail_url": (
+                                f"/api/thumbnail/{relative_path}"
+                                if file_path.suffix.lower() in image_ext
+                                else None
+                            ),
+                        }
+                    )
+
+                    if limit and len(results) >= limit:
+                        break
+                except (PermissionError, OSError):
+                    continue  # Skip inaccessible files
+
+    except Exception as e:
+        logger.error("Search error", error=str(e))
 
     # Sort results
     if sort_by == "size":
@@ -704,6 +733,8 @@ async def search_files(
         "count": len(results),
         "results": results,
         "limited": limit is not None and len(results) >= limit,
+        "files_scanned": files_scanned,
+        "search_duration_ms": round((time.time() - start_time) * 1000, 2),
     }
 
 
