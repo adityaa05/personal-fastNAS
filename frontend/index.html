@@ -901,35 +901,45 @@
         document.getElementById("server-url-input").value =
           localStorage.getItem("nas_server_url") || "";
 
+        // Remove old event listeners by cloning
+        const saveUrlBtn = document.getElementById("save-server-url");
+        const newSaveUrlBtn = saveUrlBtn.cloneNode(true);
+        saveUrlBtn.parentNode.replaceChild(newSaveUrlBtn, saveUrlBtn);
+
+        const saveKeyBtn = document.getElementById("save-api-key");
+        const newSaveKeyBtn = saveKeyBtn.cloneNode(true);
+        saveKeyBtn.parentNode.replaceChild(newSaveKeyBtn, saveKeyBtn);
+
         // Save server URL
-        document
-          .getElementById("save-server-url")
-          .addEventListener("click", () => {
-            const newUrl = document
-              .getElementById("server-url-input")
-              .value.trim();
-            if (newUrl && !newUrl.startsWith("http")) {
-              showMessage(
-                "Server URL must start with http:// or https://",
-                "error"
-              );
-              return;
-            }
-            localStorage.setItem("nas_server_url", newUrl);
-            CONFIG.baseUrl = newUrl || window.location.origin;
-            showMessage("Server URL saved. Reload page to apply changes.");
-            setTimeout(() => location.reload(), 2000);
-          });
+        newSaveUrlBtn.addEventListener("click", () => {
+          const newUrl = document
+            .getElementById("server-url-input")
+            .value.trim();
+          if (newUrl && !newUrl.startsWith("http")) {
+            showMessage(
+              "Server URL must start with http:// or https://",
+              "error"
+            );
+            return;
+          }
+          localStorage.setItem("nas_server_url", newUrl);
+          CONFIG.baseUrl = newUrl || window.location.origin;
+          showMessage("Server URL saved. Reload page to apply changes.");
+          setTimeout(() => location.reload(), 2000);
+        });
 
         // Save API key
-        document
-          .getElementById("save-api-key")
-          .addEventListener("click", () => {
-            const newKey = document.getElementById("api-key-input").value;
-            CONFIG.apiKey = newKey;
-            localStorage.setItem("nas_api_key", newKey);
-            showMessage("API key saved successfully");
-          });
+        newSaveKeyBtn.addEventListener("click", () => {
+          const newKey = document.getElementById("api-key-input").value;
+          if (!newKey) {
+            showMessage("Please enter an API key", "error");
+            return;
+          }
+          CONFIG.apiKey = newKey;
+          localStorage.setItem("nas_api_key", newKey);
+          showMessage("API key saved successfully. Reloading...");
+          setTimeout(() => location.reload(), 1500);
+        });
       }
 
       // Initialize
