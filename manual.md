@@ -117,6 +117,106 @@ tailscale ip -4
 
 ---
 
+## Running as a Windows Service
+
+For 24/7 operation on Windows, you can set up the NAS server as a Windows Service using NSSM.
+
+### Method 1: Using NSSM (Recommended - Easiest)
+
+1. **Download & Install NSSM**
+
+   - Go to https://nssm.cc/download
+   - Download NSSM 2.24
+   - Extract to `C:\nssm`
+
+2. **Create Server Script**
+   - Create a new file named `server.py` in your NAS folder
+   - Copy this code into it:
+
+```python
+import uvicorn
+import sys
+import os
+
+# Add current directory to path
+sys.path.insert(0, os.path.dirname(__file__))
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",  # Listen on all interfaces
+        port=8000,
+        workers=2,  # Adjust based on CPU cores
+        log_level="info"
+    )
+```
+
+3. **Prepare Log Directory**
+
+   ```cmd
+   mkdir logs
+   ```
+
+4. **Create the Windows Service**
+
+   - Open Command Prompt as Administrator
+   - Run these commands:
+
+   ```cmd
+   cd C:\nssm\win64
+   nssm install NASServer
+   ```
+
+   When the NSSM window opens, set these options:
+
+   In "Application":
+
+   - Path: Select your Python from venv (e.g., `C:\path\to\personal-fastNAS\venv\Scripts\python.exe`)
+   - Directory: Your NAS folder
+   - Arguments: `server.py`
+
+   In "Details":
+
+   - Name: Personal NAS Server
+   - Start: Automatic
+
+   In "I/O":
+
+   - Output: `logs\output.log`
+   - Error: `logs\error.log`
+
+5. **Start Everything**
+
+   ```cmd
+   nssm start NASServer
+   ```
+
+6. **Useful Commands**
+
+   ```cmd
+   # Check if it's running
+   nssm status NASServer
+
+   # Stop the server
+   nssm stop NASServer
+
+   # Restart
+   nssm restart NASServer
+
+   # Remove if needed
+   nssm remove NASServer confirm
+   ```
+
+7. **Check the Logs**
+   ```cmd
+   type logs\output.log
+   type logs\error.log
+   ```
+
+You can also use Windows Services (type `services.msc` in Run) to manage the service.
+
+---
+
 ## Common First-Time Issues
 
 "Python is not recognized"

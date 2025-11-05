@@ -197,27 +197,103 @@ Done! You can now access your files from anywhere.
 
 ### Windows (Using NSSM)
 
-1. **Download NSSM**: https://nssm.cc/download
-2. **Extract** to `C:\nssm`
-3. **Open Command Prompt as Administrator**
+#### Step 1: Download NSSM
+
+1. Visit: https://nssm.cc/download
+2. Download NSSM 2.24
+3. Extract to `C:\nssm`
+
+#### Step 2: Create Service Entry Point
+
+Create `server.py` in your project directory:
+
+```python
+import uvicorn
+import sys
+import os
+
+# Add current directory to path
+sys.path.insert(0, os.path.dirname(__file__))
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",  # Listen on all interfaces
+        port=8000,
+        workers=2,  # Adjust based on CPU cores
+        log_level="info"
+    )
+```
+
+#### Step 3: Create Log Directory
+
+```cmd
+mkdir logs
+```
+
+#### Step 4: Install the Service
+
+Open Command Prompt as Administrator:
 
 ```cmd
 cd C:\nssm\win64
 nssm install NASServer
 ```
 
-**In the NSSM GUI:**
+In the NSSM GUI configure:
 
-- **Path**: `C:\path\to\personal-fastNAS\venv\Scripts\python.exe`
-- **Startup directory**: `C:\path\to\personal-fastNAS`
-- **Arguments**: `main.py`
-- **Startup type**: Automatic
+**Application Tab:**
 
-**Start the service:**
+- Path: `C:\path\to\personal-fastNAS\venv\Scripts\python.exe`
+- Startup directory: `C:\path\to\personal-fastNAS`
+- Arguments: `server.py`
+
+**Details Tab:**
+
+- Display name: Personal NAS Server
+- Description: FastAPI NAS Server for file storage and access
+- Startup type: Automatic
+
+**I/O Tab:**
+
+- Output (stdout): `C:\path\to\personal-fastNAS\logs\output.log`
+- Error (stderr): `C:\path\to\personal-fastNAS\logs\error.log`
+
+**Environment Tab:**
+
+- Add environment file: Path to your `.env` file
+
+Click "Install service"
+
+#### Step 5: Manage the Service
+
+Start the service:
 
 ```cmd
 nssm start NASServer
 ```
+
+Other useful commands:
+
+```cmd
+# Check status
+nssm status NASServer
+
+# Stop service
+nssm stop NASServer
+
+# Restart service
+nssm restart NASServer
+
+# Remove service (if needed)
+nssm remove NASServer confirm
+
+# View logs
+type logs\output.log
+type logs\error.log
+```
+
+You can also manage the service through Windows Services (services.msc)
 
 ### Linux (Using systemd)
 
