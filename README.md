@@ -15,7 +15,10 @@ Turn any old Windows, Mac, or Linux laptop into your own private Network Attache
 
 ## Screenshots
 
+- System Architecutre
+<img width="578" height="733" alt="image" src="https://github.com/user-attachments/assets/a6fd9334-6f0f-41de-baea-a9d4aa91994b" />
 
+  
 - Main file browser interface
 <img width="1710" height="1112" alt="image" src="https://github.com/user-attachments/assets/26609715-c513-4488-8945-6be620f99b3c" />
 
