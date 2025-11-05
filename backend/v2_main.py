@@ -8,6 +8,7 @@ from fastapi import (
     Header,
     BackgroundTasks,
     status,
+    HTMLResponse,
 )
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -408,6 +409,19 @@ async def health_check():
         version="2.0.0",
         base_dir_accessible=settings.BASE_DIR.exists() and settings.BASE_DIR.is_dir(),
     )
+
+
+@app.get("/app", response_class=HTMLResponse, tags=["Frontend"])
+async def serve_frontend():
+    """Serve the frontend interface"""
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="Frontend not found. Place index.html in the same directory as main.py",
+        )
 
 
 @app.get("/api/stats", response_model=StorageStats, tags=["Storage"])
