@@ -584,7 +584,7 @@ Built with:
 
 - **Issues**: [GitHub Issues](https://github.com/adityaa05/personal-fastNAS/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/adityaa05/personal-fastNAS/discussions)
-- **Email**: [your-email@example.com](mailto:your-email@example.com)
+- **Email**: [patildityaa09@gmail.com](mailto:patiladityaa09@gmail.com)
 
 ---
 
@@ -635,7 +635,7 @@ If you love this project:
 
 <div align="center">
 
-**Made by [Aditya](https://github.com/adityaa05)**
+**Made by [Aditya Patil](https://github.com/adityaa05)**
 
 Turn your old tech into something useful.
 
